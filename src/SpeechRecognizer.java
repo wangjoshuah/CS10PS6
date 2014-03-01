@@ -10,9 +10,11 @@ import java.util.Set;
 
 public class SpeechRecognizer {
 	private Map<String, Map<String, Integer>> wordMap; // 1) the type of speech it is 2) the word 3) the frequency
+	private Map<String, Map<String, Integer>> tagMap; // 1) the tag 2) the tag of its next word 3) the frequency of that next word
 	
 	public SpeechRecognizer() {
 		wordMap = new HashMap<String, Map<String, Integer>>();
+		tagMap = new HashMap<String, Map<String, Integer>>();
 	}
 	
 	public void training() throws Exception {
@@ -34,7 +36,7 @@ public class SpeechRecognizer {
 		
 		while ((wordLine = words.readLine()) != null) { //passage
 			wordLine = wordLine + " ";
-			for(int i = 0; i < wordLine.length(); i++) { //line 				
+			for(int i = 0; i < wordLine.length(); i++) { //line 
 				if(wordLine.charAt(i) == ' ' ) { //word
 					wordList.add(individualWord);
 					individualWord = "";
@@ -51,7 +53,7 @@ public class SpeechRecognizer {
 				}
 				else {
 					String temp = new String();
-					temp = individualWord + wordLine.charAt(i);
+					temp = individualWord + Character.toLowerCase(wordLine.charAt(i));
 					if(temp.equals(" ")) {
 						temp = "";
 					}
@@ -59,7 +61,7 @@ public class SpeechRecognizer {
 				} 
 			}
 			counter++;
-			if(counter == 1000) {
+			if(counter == 3000) {
 				break;
 			}
 		}	
@@ -81,7 +83,7 @@ public class SpeechRecognizer {
 				}
 			}
 			counter++;
-			if(counter == 1000) {
+			if(counter == 3000) {
 				break;
 			}
 		}
@@ -108,10 +110,33 @@ public class SpeechRecognizer {
 			wordMap.put(tag, temp);
 		} 
 		
-		for(String t : wordMap.keySet()) {
+		for(int i = 0; i < tagList.size(); i ++) {
+			if(!tagMap.containsKey(tagList.get(i))) {
+				Map<String, Integer> temp = new HashMap<String, Integer>();
+				temp.put(tagList.get(i+1), 1);
+				tagMap.put(tagList.get(i), temp);
+			}
+			else if ((i+1) < tagList.size()) {
+				Map<String, Integer> temp = tagMap.get(tagList.get(i));
+				if(!temp.containsKey(tagList.get(i+1))) {
+					temp.put(tagList.get(i+1), 1);
+				}
+				else {
+					int frequency = temp.get(tagList.get(i+1)) +1;
+					temp.put(tagList.get(i+1), frequency);
+				}
+				tagMap.put(tagList.get(i), temp);
+			}
+		}
+		
+		/*for(String t : wordMap.keySet()) {
 			System.out.println(t + "=" + wordMap.get(t));
+		}*/
+		for(String t : tagMap.keySet()) {
+			System.out.println(t + "=" + tagMap.get(t));
 		}
 	}
+	
 	public static void main(String[] args) throws Exception {
 		SpeechRecognizer s = new SpeechRecognizer();
 		s.training();
