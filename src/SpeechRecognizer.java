@@ -16,8 +16,8 @@ public class SpeechRecognizer {
 	}
 	
 	public void training() throws Exception {
-		BufferedReader words = new BufferedReader(new FileReader("inputs/test-words.txt")); 
-		BufferedReader tags = new BufferedReader(new FileReader("inputs/test-tags.txt")); 
+		BufferedReader words = new BufferedReader(new FileReader("inputs/Brown-words.txt")); 
+		BufferedReader tags = new BufferedReader(new FileReader("inputs/Brown-tags.txt")); 
 		
 		String wordLine = new String();
 		String tagLine = new String();
@@ -28,6 +28,10 @@ public class SpeechRecognizer {
 		
 		String individualWord = "";
 		String individualTag = "";
+		
+		
+		int counter = 0;
+		
 		while ((wordLine = words.readLine()) != null) { //passage
 			wordLine = wordLine + " ";
 			for(int i = 0; i < wordLine.length(); i++) { //line 				
@@ -35,9 +39,15 @@ public class SpeechRecognizer {
 					wordList.add(individualWord);
 					individualWord = "";
 				}
-				if(!Character.isAlphabetic(wordLine.charAt(i)) && Character.isDigit(wordLine.charAt(i)) ) {	
-					wordList.add(Character.toString(wordLine.charAt(i)));
-					i++;
+				if(Character.isDigit(wordLine.charAt(i)) ) {
+					int j = 0;
+					String temp = "";
+					while(wordLine.charAt(i+j) != ' ') {
+						temp = temp + wordLine.charAt(i+j);
+						j++;
+					}
+					wordList.add(temp);
+					i= i + j;
 				}
 				else {
 					String temp = new String();
@@ -48,18 +58,18 @@ public class SpeechRecognizer {
 					individualWord = temp;
 				} 
 			}
-		}		
+			counter++;
+			if(counter == 1000) {
+				break;
+			}
+		}	
+		counter = 0;
 		while ((tagLine = tags.readLine()) != null) { //passage
 			for(int i = 0; i < tagLine.length(); i++) { //line 
 				if(tagLine.charAt(i) == ' ' ) { //word
 					tagList.add(individualTag);
 					tagSet.add(individualTag);
 					individualTag = "";
-				}
-				if(tagLine.charAt(i) == '.') {
-					tagList.add(Character.toString(tagLine.charAt(i)));
-					tagSet.add(Character.toString(tagLine.charAt(i)));
-					i++;
 				}
 				else {
 					String temp = new String();
@@ -70,11 +80,16 @@ public class SpeechRecognizer {
 					individualTag = temp;
 				}
 			}
+			counter++;
+			if(counter == 1000) {
+				break;
+			}
 		}
+		System.out.println(tagList.size() + " " + wordList.size());
 		/*for(String s : tagSet) {
 			System.out.println(s);
 		} */
-		for(int i = 0; i < wordList.size(); i ++) {
+		for(int i = 0; i < tagList.size(); i ++) {
 				System.out.println(i + " " + wordList.get(i) + "//" + tagList.get(i));
 		}  
 		for(String tag : tagSet) {
