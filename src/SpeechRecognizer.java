@@ -166,6 +166,11 @@ public class SpeechRecognizer {
 		System.out.println("Total Time = " + (endTime - startTime));
 	}
 
+	/**
+	 * creates the maps for tags to words and tags to next possible tags in linear time 
+	 * sets up the data on the fly as we read through the two files
+	 * @throws Exception
+	 */
 	private void quickTrain() throws Exception {
 		
 		long startTime = System.currentTimeMillis();
@@ -178,16 +183,9 @@ public class SpeechRecognizer {
 
 		String[] wordTokens;	//list of words keeping track of indices
 		String[] tagTokens;	//list of tags  keeping track of indices to compare with wordlist
-		Set<String> tagSet= new HashSet<String>();				//set  of tags to put later into our map as the keySet
-
-		String individualWord = "";	//keep track of what are individual words in the word input
-		String individualTag = "";	//keep track of what are individual tags  in the tag  input
-
-		int upperBound = 3000; //keep track of how many lines we want to go through
-		int counter = 0; //start a counter to count how many lines we've read
 
 		String start = "START";
-		Map map = new HashMap<String, Integer>();
+		Map<String, Integer> map = new HashMap<String, Integer>();
 		tagMap.put(start, map);
 		//----------------------------------------- read over this algorithm so it's absolutely correct
 		while ((wordLine = words.readLine()) != null && (tagLine = tags.readLine()) != null) { //while we can continue reading through the words and tags
@@ -197,9 +195,14 @@ public class SpeechRecognizer {
 			putWordsInMapsOfTags(wordTokens, tagTokens); //map words into wordmap of tags
 		}
 		
+		//don't forget to clean up after we are done
+		words.close();
+		tags.close();
+		
 		for(String t : tagMap.keySet()) {
 			System.out.println(t + "=" + tagMap.get(t));
 		}
+		
 		
 		long endTime = System.currentTimeMillis();
 		System.out.println("Total Time = " + (endTime - startTime));
