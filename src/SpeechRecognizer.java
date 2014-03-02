@@ -1,3 +1,4 @@
+
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -111,13 +112,10 @@ public class SpeechRecognizer {
 		 * print functions
 		 */
 		
-		//print out the sizes of the groups
-		System.out.println(tagList.size() + " " + wordList.size());
-
 		//print out tags and words
-		for(int i = 0; i < tagList.size(); i ++) {
-				System.out.println(i + " " + wordList.get(i) + "//" + tagList.get(i));
-		}  
+//		for(int i = 0; i < tagList.size(); i ++) {
+//				System.out.println(i + " " + wordList.get(i) + "//" + tagList.get(i));
+//		}  
 		
 		//create the has map of tags to words to frequencies **************************************efficiency problem
 		for(String tag : tagSet) { //for each tag
