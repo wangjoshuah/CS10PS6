@@ -18,7 +18,9 @@ public class SpeechRecognizer {
 
 	//private variables that are the maps for words and targets to their frequencies
 	private Map<String, Map<String, Integer>> wordMap; // 1) the type of speech it is 2) the word 3) the frequency
-	private Map<String, Map<String, Double>> tagMap; // 1) the tag 2) the tag of its next word 3) the frequency of that next word
+	private Map<String, Map<String, Integer>> tagMap; // 1) the tag 2) the tag of its next word 3) the frequency of that next word
+	private Map<String, Map<String, Double>> transitionMatrix; //stores the transition probability of going from state i to state j
+	private Map<String, Map<String, Double>> emissionMatrix; // stores the emission probability of a word within a state
 
 	/**
 	 * Constructor
@@ -26,7 +28,7 @@ public class SpeechRecognizer {
 	 */
 	public SpeechRecognizer() {
 		wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
-		tagMap = new HashMap<String, Map<String, Double>>(); //also start tagMap
+		tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
 	}
 
 	/**
@@ -48,7 +50,7 @@ public class SpeechRecognizer {
 		String[] tagTokens;	//list of tags  keeping track of indices to compare with wordlist
 
 		String start = "START";
-		Map<String, Double> map = new HashMap<String, Double>();
+		Map<String, Integer> map = new HashMap<String, Integer>();
 		tagMap.put(start, map);
 		//----------------------------------------- read over this algorithm so it's absolutely correct
 		while ((wordLine = words.readLine()) != null && (tagLine = tags.readLine()) != null) { //while we can continue reading through the words and tags
@@ -62,7 +64,8 @@ public class SpeechRecognizer {
 		words.close();
 		tags.close();
 		
-		probabilityCalculator();
+		createTransitionMatrix();
+		createEmissionMatrix();
 		
 		for(String t : tagMap.keySet()) {
 			System.out.println(t + "=" + tagMap.get(t));
@@ -98,12 +101,12 @@ public class SpeechRecognizer {
 				tagMap.get(prevTag).put(currentTag, tagMap.get(prevTag).get(currentTag) + 1); //get the frequency with which the tag appears after the prev tag
 			}
 			else { //if the tag has never shown up after that tag before,
-				tagMap.get(prevTag).put(currentTag, (double) 1); //put a new mapping of our current tag with frequency 1 in there
+				tagMap.get(prevTag).put(currentTag, 1); //put a new mapping of our current tag with frequency 1 in there
 			}
 		}
 		else { //if the tagMap doesn't know about the prev tag
-			Map<String, Double> nextTag = new HashMap<String, Double>(); //create a submap for the prev's next tag
-			nextTag.put(currentTag, (double) 1); //put the current tag and frequency = 1 in there
+			Map<String, Integer> nextTag = new HashMap<String, Integer>(); //create a submap for the prev's next tag
+			nextTag.put(currentTag, 1); //put the current tag and frequency = 1 in there
 			tagMap.put(prevTag, nextTag); //put our new map in there to be the value for the prev tag
 		}
 	}
@@ -134,26 +137,46 @@ public class SpeechRecognizer {
 	/**
 	 * Calculates log probability of each next part of speech for each part of speech
 	 */
-	private void probabilityCalculator() {
-		int denominator = 0; 
-		for(String tag1 : tagMap.keySet()) { //for every tag in the tagmap
-			for(Double d : tagMap.get(tag1).values()) { //get the denominator 
-				denominator += d;
+	private void createTransitionMatrix() {
+		int denominator; //divides the frequencies in second sub-for-loop
+		for(String state : tagMap.keySet()) { //for every tag in the tagMap
+			denominator = 0; //set denominator as zero when we start calculating the new probabilities
+			for(Integer frequencies : tagMap.get(state).values()) { //get the frequency of all next possible states coming from our start tag 
+				denominator += frequencies; //sum up all the frequencies
 			}
-			for(String tag2 : tagMap.get(tag1).keySet()) { //for every 2nd tag of each tag1 in the tagMap
-				double convertedV = Math.log((tagMap.get(tag1).get(tag2)/denominator));
-				tagMap.get(tag1).put(tag2, convertedV);
-				//System.out.println(tag1 + " " + tag2 + " " + tagMap.get(tag1).get(tag2) + "/" + denominator);
-				//System.out.println(tag1 + " " + tag2 + " " + convertedV);
+			for(String nextState : tagMap.get(state).keySet()) { //for every 2nd tag of each tag1 in the tagMap
+				double transitionProbability = Math.log(tagMap.get(state).get(nextState) / denominator); //calculate the transition probability from state i to state j
+				Map<String, Double> element = new HashMap<String, Double>(); //create our element in the transition matrix
+				element.put(nextState, transitionProbability); //populate that element
+				transitionMatrix.put(state, element); //put our transition probability in for going from state to next state
 			}
-			denominator = 0;
 		}	
 	}
 	
+	/**
+	 * create the emission matrix we will use in the future to calculate probabilities
+	 */
+	private void createEmissionMatrix() {
+		int denominator; //divides the frequencies 
+		for(String state: wordMap.keySet()) { //for every tag in wordMap
+			denominator = 0; //start over our denominator
+			for(Integer frequencies : wordMap.get(state).values()) { //for all frequencies of a state's words
+				denominator += frequencies; //summ all of the words for that state
+			}
+			for(String word : wordMap.get(state).keySet()) { //for all words in that tag type
+				double emissionProbability = Math.log(wordMap.get(state).get(word) / denominator); //calculate the emission probabilitye for a word within a state
+				Map<String, Double> element = new HashMap<String, Double>(); //create our element placeholder
+				element.put(word, emissionProbability); //populate the element
+				emissionMatrix.put(state, element); //put the emission probability in our emission matrix
+			}
+		}
+	}
+	
 	private void viterbiTagging(String input) {
+		tagMap.keySet();
 		String[] wordArray = input.split(" ");
 		ArrayList<String> wordList = new ArrayList<String>();
-		wordList.add("*");
+		wordList.add("START");
 		for(int i = 0; i < (1+wordArray.length); i++ ) {
 			wordList.add(wordArray[i+1]);
 		}
@@ -181,6 +204,7 @@ public class SpeechRecognizer {
 		
 		
 	}
+	
 	
 	
 	public static void main(String[] args) throws Exception {
