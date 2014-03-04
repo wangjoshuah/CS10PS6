@@ -205,6 +205,9 @@ public class SpeechRecognizer {
 		
 	}
 	
+	private void predictOnString(String[] observations) {
+		
+	}
 	
 	
 	public static void main(String[] args) throws Exception {
