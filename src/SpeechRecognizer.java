@@ -18,7 +18,7 @@ public class SpeechRecognizer {
 
 	//private variables that are the maps for words and targets to their frequencies
 	private Map<String, Map<String, Integer>> wordMap; // 1) the type of speech it is 2) the word 3) the frequency
-	private Map<String, Map<String, Integer>> tagMap; // 1) the tag 2) the tag of its next word 3) the frequency of that next word
+	private Map<String, Map<String, Double>> tagMap; // 1) the tag 2) the tag of its next word 3) the frequency of that next word
 
 	/**
 	 * Constructor
@@ -26,144 +26,7 @@ public class SpeechRecognizer {
 	 */
 	public SpeechRecognizer() {
 		wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
-		tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
-	}
-
-	/**
-	 * Read in our word and tag values to tell our speech recognizer how to function
-	 * @throws Exception		incorrect file input
-	 */
-	public void training() throws Exception {
-		//create readers for all the word in puts and the tag inputs
-		BufferedReader words = new BufferedReader(new FileReader("inputs/Brown-words.txt")); //where do we get our words from input document 
-		BufferedReader tags = new BufferedReader(new FileReader("inputs/Brown-tags.txt"));   //get our tags from other input doc
-
-		String wordLine = new String(); //string that takes each line of the words file
-		String tagLine = new String();  //string that takes each line of the tags  file
-
-		ArrayList<String> wordList = new ArrayList<String>();	//list of words keeping track of indices
-		ArrayList<String> tagList = new ArrayList<String>();	//list of tags  keeping track of indices to compare with wordlist
-		Set<String> tagSet= new HashSet<String>();				//set  of tags to put later into our map as the keySet
-
-		String individualWord = "";	//keep track of what are individual words in the word input
-		String individualTag = "";	//keep track of what are individual tags  in the tag  input
-
-		int upperBound = 3000; //keep track of how many lines we want to go through
-		int counter = 0; //start a counter to count how many lines we've read
-
-		//----------------------------------------- read over this algorithm so it's absolutely correct
-		while ((wordLine = words.readLine()) != null) { //while we can continue reading through the
-			wordLine = wordLine + " ";
-			for(int i = 0; i < wordLine.length(); i++) { //line 
-				if(wordLine.charAt(i) == ' ' ) { //word
-					wordList.add(individualWord);
-					individualWord = "";
-				}
-				if(Character.isDigit(wordLine.charAt(i)) ) {
-					int j = 0;
-					String temp = "";
-					while(wordLine.charAt(i+j) != ' ') {
-						temp = temp + wordLine.charAt(i+j);
-						j++;
-					}
-					wordList.add(temp);
-					i= i + j;
-				}
-				else {
-					String temp = new String();
-					temp = individualWord + Character.toLowerCase(wordLine.charAt(i));
-					if(temp.equals(" ")) {
-						temp = "";
-					}
-					individualWord = temp;
-				} 
-			}
-			counter++;
-			if(counter == upperBound) {
-				break;
-			}
-		}	
-		counter = 0;
-
-		//---------------------------------------------- also read this algorithm
-		while ((tagLine = tags.readLine()) != null) { //while we can read in more lines of tags
-
-			for(int i = 0; i < tagLine.length(); i++) { //line 
-				if(tagLine.charAt(i) == ' ' ) { //word
-					tagList.add(individualTag);
-					tagSet.add(individualTag);
-					individualTag = "";
-				}
-				else {
-					String temp = new String();
-					temp = individualTag + tagLine.charAt(i);
-					if(temp.equals(" ")) {
-						temp = "";
-					}
-					individualTag = temp;
-				}
-			}
-			counter++;
-			if(counter == upperBound) {
-				break;
-			}
-		}
-
-
-		/*
-		 * print functions
-		 */
-
-		//print out tags and words
-		//		for(int i = 0; i < tagList.size(); i ++) {
-		//				System.out.println(i + " " + wordList.get(i) + "//" + tagList.get(i));
-		//		}  
-
-		//create the has map of tags to words to frequencies **************************************efficiency problem
-		for(String tag : tagSet) { //for each tag
-			Map<String, Integer> temp = new HashMap<String, Integer>(); //create a map with that tag as the key and another map of words and frequencies as value
-			for(int i = 0; i < tagList.size(); i++) { //for all the tags in the list
-				if(tagList.get(i).equals(tag)) { 
-					if(!temp.containsKey(wordList.get(i))) {
-						temp.put(wordList.get(i), 1);
-					}
-					else {
-						int frequency = temp.get(wordList.get(i)) +1;
-						temp.put(wordList.get(i), frequency);
-					}
-				}
-			}
-			wordMap.put(tag, temp);
-		} 
-
-		for(int i = 0; i < tagList.size(); i ++) {
-			if(!tagMap.containsKey(tagList.get(i))) {
-				Map<String, Integer> temp = new HashMap<String, Integer>();
-				temp.put(tagList.get(i+1), 1);
-				tagMap.put(tagList.get(i), temp);
-			}
-			else if ((i+1) < tagList.size()) {
-				Map<String, Integer> temp = tagMap.get(tagList.get(i));
-				if(!temp.containsKey(tagList.get(i+1))) {
-					temp.put(tagList.get(i+1), 1);
-				}
-				else {
-					int frequency = temp.get(tagList.get(i+1)) +1;
-					temp.put(tagList.get(i+1), frequency);
-				}
-				tagMap.put(tagList.get(i), temp);
-			}
-		}
-
-		/*for(String t : wordMap.keySet()) {
-			System.out.println(t + "=" + wordMap.get(t));
-		}*/
-		for(String t : tagMap.keySet()) {
-			System.out.println(t + "=" + tagMap.get(t));
-		}
-		
-		long endTime = System.currentTimeMillis();
-		System.out.println("Total Time = " + (endTime - startTime));
+		tagMap = new HashMap<String, Map<String, Double>>(); //also start tagMap
 	}
 
 	/**
@@ -185,7 +48,7 @@ public class SpeechRecognizer {
 		String[] tagTokens;	//list of tags  keeping track of indices to compare with wordlist
 
 		String start = "START";
-		Map<String, Integer> map = new HashMap<String, Integer>();
+		Map<String, Double> map = new HashMap<String, Double>();
 		tagMap.put(start, map);
 		//----------------------------------------- read over this algorithm so it's absolutely correct
 		while ((wordLine = words.readLine()) != null && (tagLine = tags.readLine()) != null) { //while we can continue reading through the words and tags
@@ -199,8 +62,13 @@ public class SpeechRecognizer {
 		words.close();
 		tags.close();
 		
+		probabilityCalculator();
+		
 		for(String t : tagMap.keySet()) {
 			System.out.println(t + "=" + tagMap.get(t));
+		}
+		for(String w : wordMap.keySet()) {
+			System.out.println(w + "=" + wordMap.get(w));
 		}
 		
 		
@@ -230,12 +98,12 @@ public class SpeechRecognizer {
 				tagMap.get(prevTag).put(currentTag, tagMap.get(prevTag).get(currentTag) + 1); //get the frequency with which the tag appears after the prev tag
 			}
 			else { //if the tag has never shown up after that tag before,
-				tagMap.get(prevTag).put(currentTag, 1); //put a new mapping of our current tag with frequency 1 in there
+				tagMap.get(prevTag).put(currentTag, (double) 1); //put a new mapping of our current tag with frequency 1 in there
 			}
 		}
 		else { //if the tagMap doesn't know about the prev tag
-			Map<String, Integer> nextTag = new HashMap<String, Integer>(); //create a submap for the prev's next tag
-			nextTag.put(currentTag, 1); //put the current tag and frequency = 1 in there
+			Map<String, Double> nextTag = new HashMap<String, Double>(); //create a submap for the prev's next tag
+			nextTag.put(currentTag, (double) 1); //put the current tag and frequency = 1 in there
 			tagMap.put(prevTag, nextTag); //put our new map in there to be the value for the prev tag
 		}
 	}
@@ -263,9 +131,62 @@ public class SpeechRecognizer {
 		}
 	}
 
+	/**
+	 * Calculates log probability of each next part of speech for each part of speech
+	 */
+	private void probabilityCalculator() {
+		int denominator = 0; 
+		for(String tag1 : tagMap.keySet()) { //for every tag in the tagmap
+			for(Double d : tagMap.get(tag1).values()) { //get the denominator 
+				denominator += d;
+			}
+			for(String tag2 : tagMap.get(tag1).keySet()) { //for every 2nd tag of each tag1 in the tagMap
+				double convertedV = Math.log((tagMap.get(tag1).get(tag2)/denominator));
+				tagMap.get(tag1).put(tag2, convertedV);
+				//System.out.println(tag1 + " " + tag2 + " " + tagMap.get(tag1).get(tag2) + "/" + denominator);
+				//System.out.println(tag1 + " " + tag2 + " " + convertedV);
+			}
+			denominator = 0;
+		}	
+	}
+	
+	private void viterbiTagging(String input) {
+		String[] wordArray = input.split(" ");
+		ArrayList<String> wordList = new ArrayList<String>();
+		wordList.add("*");
+		for(int i = 0; i < (1+wordArray.length); i++ ) {
+			wordList.add(wordArray[i+1]);
+		}
+		
+		ArrayList<String> tagList = new ArrayList<String>();
+		tagList.add("");
+		
+		ArrayList<Double> scoreList = new ArrayList<Double>();
+		scoreList.add((double) 0);
+		
+		/*
+		//first word tagger
+		String tempTag = new String();
+		for(String POS : wordMap.keySet()) { //loop through the wordMap to find 1st word
+			int tempInt = 0;
+			if(wordMap.get(POS).containsValue(wordMap.get(POS).containsKey(wordArray[0]))) { //if the inner map linked to a given POS contains the word
+				if(wordMap.get(POS).get(wordArray[0]) > tempInt) {
+					tempInt = wordMap.get(POS).get(wordArray[0]);
+					tempTag = POS;
+				}
+			}
+		}
+		tagList.add(tempTag);
+		*/
+		
+		
+	}
+	
+	
 	public static void main(String[] args) throws Exception {
 		SpeechRecognizer s = new SpeechRecognizer();
-//		s.training();
 		s.quickTrain();
+		
+		
 	}
 }
