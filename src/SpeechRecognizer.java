@@ -132,6 +132,45 @@ public class SpeechRecognizer {
 		
 		return score / numberOfChunks;
 	}
+	
+	public double testOnNumberOfChunksWithAllLines(int numberOfChunks) throws Exception {
+		double score = 0.0;
+		wordChunks = new ArrayList<ArrayList<String[]>>(numberOfChunks);
+		tagChunks = new ArrayList<ArrayList<String[]>>(numberOfChunks);
+		for (int c = 0; c < numberOfChunks; c ++) {
+			ArrayList<String[]> wordPlaceHolder = new ArrayList<String[]>();
+			wordChunks.add(wordPlaceHolder);
+			ArrayList<String[]> tagPlaceHolder = new ArrayList<String[]>();
+			tagChunks.add(tagPlaceHolder);
+		}
+		int counter = 0;
+		//create readers for all the word in puts and the tag inputs
+		BufferedReader words = new BufferedReader(new FileReader("inputs/Brown-words.txt")); //where do we get our words from input document 
+		BufferedReader tags = new BufferedReader(new FileReader("inputs/Brown-tags.txt"));   //get our tags from other input doc
+
+		String wordLine = new String(); //string that takes each line of the words file
+		String tagLine = new String();  //string that takes each line of the tags  file
+
+		while ((wordLine = words.readLine()) != null && (tagLine = tags.readLine()) != null) { //while we can continue reading through the words and tags
+			wordChunks.get(counter % numberOfChunks).add(wordLine.split(" "));
+			tagChunks.get(counter % numberOfChunks).add(tagLine.split(" "));
+			counter ++;
+		}
+
+		System.out.println("word chunks has " + wordChunks.size() + " chunks and " + wordChunks.get(0).size() + " lines in the first chunk");
+
+		words.close();
+		tags.close();
+
+		for (int i = 0; i < numberOfChunks; i++) {
+			doNotTestOn(i);
+			transitionMatrix = createTransitionMatrix();
+			emissionMatrix = createEmissionMatrix();
+			//System.out.println(numberOfChunks + " " + score);
+			score += testOnChunk(i);
+		}
+		return score / numberOfChunks;
+	}
 
 	/**
 	 * 
@@ -389,7 +428,7 @@ public class SpeechRecognizer {
 		System.out.println("length is " + backTrace.length + " and values are " + tags);
 		*/
 		//System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(1, 1));
-		System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(10, 100));
+		System.out.println("Accuracy is " + s.testOnNumberOfChunksWithAllLines(5));
 
 	}
 }
