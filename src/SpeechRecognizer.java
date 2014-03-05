@@ -345,7 +345,7 @@ public class SpeechRecognizer {
 		//			tags += (tag + " ");
 		//		}
 		//		System.out.println("length is " + backTrace.length + " and values are " + tags);
-		System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(5, 100));
+		System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(5, 100) * 100);
 
 	}
 }
