@@ -240,7 +240,7 @@ public class SpeechRecognizer {
 		System.out.println(maxKey);
 		predictedTags[predictedTags.length - 1] = maxKey;
 		for(int i = predictedTags.length - 2; i > -1; i --) {
-			predictedTags[i] = backTrace.get(i).get(predictedTags[i+1]);
+			predictedTags[i] = backTrace.get(i + 1).get(predictedTags[i+1]);
 			System.out.println("this is " + backTrace.get(i).get(maxKey));
 		}
 		return predictedTags;
@@ -258,9 +258,13 @@ public class SpeechRecognizer {
 	public static void main(String[] args) throws Exception {
 		SpeechRecognizer s = new SpeechRecognizer();
 		s.quickTrain();
-		String test = new String("the county");
+		String test = new String("The Fulton County Grand Jury said Friday an investigation of Atlanta's recent primary election produced `` no evidence '' that any irregularities took place .");
 		String[] backTrace = s.predictOnString(test.split(" "));
-		System.out.println("length is " + backTrace.length + " and values are " + backTrace[0]);
+		String tags = new String();
+		for(String tag : backTrace) {
+			tags += (tag + " ");
+		}
+		System.out.println("length is " + backTrace.length + " and values are " + tags);
 
 	}
 }
