@@ -21,7 +21,7 @@ public class SpeechRecognizer {
 	private Map<String, Map<String, Integer>> tagMap; // 1) the tag 2) the tag of its next word 3) the frequency of that next word
 	private Map<String, Map<String, Double>> transitionMatrix; //stores the transition probability of going from state i to state j
 	private Map<String, Map<String, Double>> emissionMatrix; // stores the emission probability of a word within a state
-	private final double reallySmallValue = Math.log(-1000);
+	private final double reallySmallValue = -1000.0;
 
 	/**
 	 * Constructor
@@ -43,8 +43,8 @@ public class SpeechRecognizer {
 
 		long startTime = System.currentTimeMillis();
 		//create readers for all the word in puts and the tag inputs
-		BufferedReader words = new BufferedReader(new FileReader("inputs/test-words.txt")); //where do we get our words from input document 
-		BufferedReader tags = new BufferedReader(new FileReader("inputs/test-tags.txt"));   //get our tags from other input doc
+		BufferedReader words = new BufferedReader(new FileReader("inputs/Brown-words.txt")); //where do we get our words from input document 
+		BufferedReader tags = new BufferedReader(new FileReader("inputs/Brown-tags.txt"));   //get our tags from other input doc
 
 		String wordLine = new String(); //string that takes each line of the words file
 		String tagLine = new String();  //string that takes each line of the tags  file
@@ -210,39 +210,40 @@ public class SpeechRecognizer {
 	}
 
 	private String[] predictOnString(String[] observations) {
-		ArrayList<Map> backTrace = new ArrayList<Map>(); //create a backtrace arraylist of maps
+		ArrayList<Map<String, String>> backTrace = new ArrayList<Map<String, String>>(); //create a backtrace arraylist of maps
 		Map<String, Double> states = new HashMap<String, Double>();
 		states.put("START", (double) 0); //put in 0 for the start state's probability since log(1) = 0
 		for(String word : observations) { //for each word
 			Map<String, Double> scores = new HashMap<String, Double>();
+			Map<String, String> backPath = new HashMap<String, String>();
 			for(String state: states.keySet()) { //for each state
 				for(String nextState: tagMap.get(state).keySet()) {
 					double score = states.get(state) + transitionMatrix.get(state).get(nextState) + getEmission(nextState, word);
-					if(!scores.containsKey(nextState) || score > scores.get(nextState)) {
+					if(!scores.containsKey(nextState) || score > scores.get(nextState)) { //if overwrite
 						scores.put(nextState, score); //put the score in the score map
-						backTrace.add(scores); //put this new map in the back tracer
+						backPath.put(nextState, state); //put it in our map
 					}
 				}
 			}
+			backTrace.add(backPath); //add the backpath at that word level
 			states = scores; //get ready to iterate on the next set of states
 		}
 		String[] predictedTags = new String[observations.length];
 		String maxKey=null;
-		Double maxValue = 0.0;
+		Double maxValue = reallySmallValue;
 		for(String state : states.keySet()) {
 		     if(states.get(state) > maxValue) {
 		         maxValue = states.get(state);
 		         maxKey = state;
 		     }
 		}
+		System.out.println(maxKey);
 		predictedTags[predictedTags.length - 1] = maxKey;
 		for(int i = predictedTags.length - 2; i > -1; i --) {
-			predictedTags[i] = backTrace.get(i).get(maxKey);
+			predictedTags[i] = backTrace.get(i).get(predictedTags[i+1]);
+			System.out.println("this is " + backTrace.get(i).get(maxKey));
 		}
-		
-		
-		
-		return backTrace;
+		return predictedTags;
 	}
 
 	private Map<String, Map<Integer, Double>> createProbabilityTable(String[] observations) {
@@ -257,9 +258,9 @@ public class SpeechRecognizer {
 	public static void main(String[] args) throws Exception {
 		SpeechRecognizer s = new SpeechRecognizer();
 		s.quickTrain();
-		String test = new String("the ");
-		ArrayList<Map> backTrace = s.predictOnString(test.split(" "));
-		System.out.println(backTrace);
+		String test = new String("the county");
+		String[] backTrace = s.predictOnString(test.split(" "));
+		System.out.println("length is " + backTrace.length + " and values are " + backTrace[0]);
 
 	}
 }
