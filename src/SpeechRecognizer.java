@@ -30,8 +30,8 @@ public class SpeechRecognizer {
 	 * initializes the word map and the tag map
 	 */
 	public SpeechRecognizer() {
-		wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
-		tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
+//		wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
+//		tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
 		transitionMatrix = new HashMap<String, Map<String, Double>>(); //start transititon matrix
 		emissionMatrix = new HashMap<String, Map<String, Double>>(); //start emissions matrix
 	
@@ -163,6 +163,7 @@ public class SpeechRecognizer {
 		tags.close();
 
 		for (int i = 0; i < numberOfChunks; i++) {
+			System.out.println("Testing..." + (double) i/numberOfChunks*100 + "%");
 			doNotTestOn(i);
 			transitionMatrix = createTransitionMatrix();
 			emissionMatrix = createEmissionMatrix();
@@ -177,8 +178,8 @@ public class SpeechRecognizer {
 	 * @param doNotTest
 	 */
 	private void doNotTestOn(int doNotTest) {		
-		//wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
-		//tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
+		wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
+		tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
 		for (int i = 0; i < wordChunks.size(); i ++) {
 			if (i != doNotTest) {
 				for (int j = 0; j < wordChunks.get(i).size(); j ++) {
@@ -428,7 +429,7 @@ public class SpeechRecognizer {
 		System.out.println("length is " + backTrace.length + " and values are " + tags);
 		*/
 		//System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(1, 1));
-		System.out.println("Accuracy is " + s.testOnNumberOfChunksWithAllLines(5));
+		System.out.println("Accuracy is " + s.testOnNumberOfChunksWithAllLines(100));
 
 	}
 }
