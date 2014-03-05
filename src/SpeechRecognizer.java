@@ -30,7 +30,11 @@ public class SpeechRecognizer {
 	 * initializes the word map and the tag map
 	 */
 	public SpeechRecognizer() {
-
+		wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
+		tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
+		transitionMatrix = new HashMap<String, Map<String, Double>>(); //start transititon matrix
+		emissionMatrix = new HashMap<String, Map<String, Double>>(); //start emissions matrix
+	
 	}
 
 	/**
@@ -73,6 +77,13 @@ public class SpeechRecognizer {
 		System.out.println("Total Time = " + (endTime - startTime));
 	}
 
+	/**
+	 * 
+	 * @param numberOfChunks
+	 * @param lines
+	 * @return
+	 * @throws Exception
+	 */
 	public double testOnNumberOfChunksAndLines(int numberOfChunks, int lines) throws Exception {
 		double score = 0.0;
 		wordChunks = new ArrayList<ArrayList<String[]>>(numberOfChunks);
@@ -97,7 +108,6 @@ public class SpeechRecognizer {
 			counter ++;
 		}
 
-		System.out.println("asdlkfjaslkdfjlaskdjf");
 		System.out.println("word chunks has " + wordChunks.size() + " chunks and " + wordChunks.get(0).size() + " lines in the first chunk");
 
 		words.close();
@@ -107,15 +117,29 @@ public class SpeechRecognizer {
 			doNotTestOn(i);
 			transitionMatrix = createTransitionMatrix();
 			emissionMatrix = createEmissionMatrix();
+			//System.out.println(numberOfChunks + " " + score);
 			score += testOnChunk(i);
 		}
 
+		
+		/*for(int i = 0; i < tagChunks.size(); i ++) {
+			for(int j = 0; j < tagChunks.get(i).size(); j++) {
+				for(int k = 0; k < tagChunks.get(i).get(j).length; k++) {
+					System.out.println(tagChunks.get(i).get(j)[k] + " " + wordChunks.get(i).get(j)[k]);
+				}
+			}
+		} */
+		
 		return score / numberOfChunks;
 	}
 
+	/**
+	 * 
+	 * @param doNotTest
+	 */
 	private void doNotTestOn(int doNotTest) {		
-		wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
-		tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
+		//wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
+		//tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
 		for (int i = 0; i < wordChunks.size(); i ++) {
 			if (i != doNotTest) {
 				for (int j = 0; j < wordChunks.get(i).size(); j ++) {
@@ -126,11 +150,23 @@ public class SpeechRecognizer {
 		}			
 	}
 
+	/**
+	 * 
+	 * @param doTest
+	 * @return
+	 */
 	private double testOnChunk(int doTest) {
 		double accuracy = 0;
 		for (int i = 0; i < tagChunks.get(doTest).size(); i ++) {
 			String[] predictedTags = predictOnString(wordChunks.get(doTest).get(i));
 			String[] actualTags = tagChunks.get(doTest).get(i);
+			
+			
+			/*for(int z = 0; z < predictedTags.length; z++) {
+				System.out.println(predictedTags[z] + " " + actualTags[z]);
+			} */
+			
+			
 			double percentage = 0;
 			for (int j = 0; j < predictedTags.length; j ++) {
 				if (actualTags[j].equalsIgnoreCase(predictedTags[j])) {
@@ -239,39 +275,12 @@ public class SpeechRecognizer {
 		return tempEmissionMatrix;
 	}
 
-	private void viterbiTagging(String input) {
-		tagMap.keySet();
-		String[] wordArray = input.split(" ");
-		ArrayList<String> wordList = new ArrayList<String>();
-		wordList.add("START");
-		for(int i = 0; i < (1+wordArray.length); i++ ) {
-			wordList.add(wordArray[i+1]);
-		}
-
-		ArrayList<String> tagList = new ArrayList<String>();
-		tagList.add("");
-
-		ArrayList<Double> scoreList = new ArrayList<Double>();
-		scoreList.add((double) 0);
-
-		/*
-		//first word tagger
-		String tempTag = new String();
-		for(String POS : wordMap.keySet()) { //loop through the wordMap to find 1st word
-			int tempInt = 0;
-			if(wordMap.get(POS).containsValue(wordMap.get(POS).containsKey(wordArray[0]))) { //if the inner map linked to a given POS contains the word
-				if(wordMap.get(POS).get(wordArray[0]) > tempInt) {
-					tempInt = wordMap.get(POS).get(wordArray[0]);
-					tempTag = POS;
-				}
-			}
-		}
-		tagList.add(tempTag);
-		 */
-
-
-	}
-
+	/**
+	 * 
+	 * @param nextState
+	 * @param word
+	 * @return
+	 */
 	private double getEmission(String nextState, String word) {
 		if(emissionMatrix.get(nextState).containsKey(word)) {
 			return emissionMatrix.get(nextState).get(word);
@@ -281,6 +290,12 @@ public class SpeechRecognizer {
 		}
 	}
 
+	/**
+	 * 
+	 * @param state
+	 * @param nextState
+	 * @return
+	 */
 	private double getTransition(String state, String nextState) {
 		if(transitionMatrix.get(state).containsKey(nextState)) {
 			return transitionMatrix.get(state).get(nextState);
@@ -289,6 +304,13 @@ public class SpeechRecognizer {
 			return reallySmallValue;
 		}
 	}
+	
+	
+	/**
+	 * 
+	 * @param observations
+	 * @return
+	 */
 	private String[] predictOnString(String[] observations) {
 		ArrayList<Map<String, String>> backTrace = new ArrayList<Map<String, String>>(); //create a backtrace arraylist of maps
 		Map<String, Double> states = new HashMap<String, Double>();
@@ -297,9 +319,13 @@ public class SpeechRecognizer {
 			Map<String, Double> scores = new HashMap<String, Double>();
 			Map<String, String> backPath = new HashMap<String, String>();
 			for(String state: states.keySet()) { //for each state
+				
+				
 				if(tagMap.containsKey(state)) {
+					
 					for(String nextState: tagMap.get(state).keySet()) {
 						double score = states.get(state) + getTransition(state, nextState) + getEmission(nextState, word);
+						//System.out.println("This is the score " + score);
 						if(!scores.containsKey(nextState) || score > scores.get(nextState)) { //if overwrite
 							scores.put(nextState, score); //put the score in the score map
 							backPath.put(nextState, state); //put it in our map
@@ -310,6 +336,13 @@ public class SpeechRecognizer {
 			backTrace.add(backPath); //add the backpath at that word level
 			states = scores; //get ready to iterate on the next set of states
 		}
+		
+		
+		/*for(Map<String, String> m : backTrace) {
+			System.out.println(m.toString());
+		}*/
+		
+		
 		String[] predictedTags = new String[observations.length];
 		String maxKey=null;
 		Double maxValue = reallySmallValue;
@@ -326,26 +359,37 @@ public class SpeechRecognizer {
 		return predictedTags;
 	}
 
-	private Map<String, Map<Integer, Double>> createProbabilityTable(String[] observations) {
+	/**
+	 * 
+	 * @param observations
+	 * @return
+	 */
+	/*private Map<String, Map<Integer, Double>> createProbabilityTable(String[] observations) {
 		Map<String, Map<Integer, Double>> probabilityTable = new HashMap<String, Map<Integer, Double>>();
 		for(String state : tagMap.keySet()) {
 
 		}
 		return probabilityTable;
-	}
+	} */
 
-
+	/**
+	 * 
+	 * @param args
+	 * @throws Exception
+	 */
 	public static void main(String[] args) throws Exception {
 		SpeechRecognizer s = new SpeechRecognizer();
-		//		s.quickTrain();
-		//		String test = new String("The Fulton County Grand Jury said Friday an investigation of Atlanta's recent primary election produced `` no evidence '' that any irregularities took place .");
-		//		String[] backTrace = s.predictOnString(test.split(" "));
-		//		String tags = new String();
-		//		for(String tag : backTrace) {
-		//			tags += (tag + " ");
-		//		}
-		//		System.out.println("length is " + backTrace.length + " and values are " + tags);
-		System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(5, 100) * 100);
+		//s.quickTrain();
+		/*String test = new String("The Fulton County Grand Jury said Friday an investigation of Atlanta's recent primary election produced `` no evidence '' that any irregularities took place .");
+		String[] backTrace = s.predictOnString(test.split(" "));
+		String tags = new String();
+		for(String tag : backTrace) {
+					tags += (tag + " ");
+				} 
+		System.out.println("length is " + backTrace.length + " and values are " + tags);
+		*/
+		//System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(1, 1));
+		System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(10, 100));
 
 	}
 }
