@@ -21,6 +21,7 @@ public class SpeechRecognizer {
 	private Map<String, Map<String, Integer>> tagMap; // 1) the tag 2) the tag of its next word 3) the frequency of that next word
 	private Map<String, Map<String, Double>> transitionMatrix; //stores the transition probability of going from state i to state j
 	private Map<String, Map<String, Double>> emissionMatrix; // stores the emission probability of a word within a state
+	private final double reallySmallValue = Math.log(-1000);
 
 	/**
 	 * Constructor
@@ -29,6 +30,8 @@ public class SpeechRecognizer {
 	public SpeechRecognizer() {
 		wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
 		tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
+		transitionMatrix = new HashMap<String, Map<String, Double>>(); //start transititon matrix
+		emissionMatrix = new HashMap<String, Map<String, Double>>(); //start emissions matrix
 	}
 
 	/**
@@ -37,7 +40,7 @@ public class SpeechRecognizer {
 	 * @throws Exception
 	 */
 	private void quickTrain() throws Exception {
-		
+
 		long startTime = System.currentTimeMillis();
 		//create readers for all the word in puts and the tag inputs
 		BufferedReader words = new BufferedReader(new FileReader("inputs/test-words.txt")); //where do we get our words from input document 
@@ -59,22 +62,14 @@ public class SpeechRecognizer {
 			putTagInTagMapOfPrevTag(tagTokens); //handle tags and prev tags map
 			putWordsInMapsOfTags(wordTokens, tagTokens); //map words into wordmap of tags
 		}
-		
+
 		//don't forget to clean up after we are done
 		words.close();
 		tags.close();
-		
+
 		createTransitionMatrix();
 		createEmissionMatrix();
-		
-		for(String t : tagMap.keySet()) {
-			System.out.println(t + "=" + tagMap.get(t));
-		}
-		for(String w : wordMap.keySet()) {
-			System.out.println(w + "=" + wordMap.get(w));
-		}
-		
-		
+
 		long endTime = System.currentTimeMillis();
 		System.out.println("Total Time = " + (endTime - startTime));
 	}
@@ -110,7 +105,7 @@ public class SpeechRecognizer {
 			tagMap.put(prevTag, nextTag); //put our new map in there to be the value for the prev tag
 		}
 	}
-	
+
 	/**
 	 * map the words to what tags they appear under
 	 * @param words		string array of the different words or punctuation types from the words text file
@@ -144,15 +139,15 @@ public class SpeechRecognizer {
 			for(Integer frequencies : tagMap.get(state).values()) { //get the frequency of all next possible states coming from our start tag 
 				denominator += frequencies; //sum up all the frequencies
 			}
+			Map<String, Double> element = new HashMap<String, Double>(); //create our element in the transition matrix
 			for(String nextState : tagMap.get(state).keySet()) { //for every 2nd tag of each tag1 in the tagMap
-				double transitionProbability = Math.log(tagMap.get(state).get(nextState) / denominator); //calculate the transition probability from state i to state j
-				Map<String, Double> element = new HashMap<String, Double>(); //create our element in the transition matrix
+				double transitionProbability = Math.log((double) tagMap.get(state).get(nextState) / denominator); //calculate the transition probability from state i to state j
 				element.put(nextState, transitionProbability); //populate that element
-				transitionMatrix.put(state, element); //put our transition probability in for going from state to next state
 			}
-		}	
+			transitionMatrix.put(state, element); //put our transition probability in for going from state to next state
+		}
 	}
-	
+
 	/**
 	 * create the emission matrix we will use in the future to calculate probabilities
 	 */
@@ -163,15 +158,15 @@ public class SpeechRecognizer {
 			for(Integer frequencies : wordMap.get(state).values()) { //for all frequencies of a state's words
 				denominator += frequencies; //summ all of the words for that state
 			}
+			Map<String, Double> element = new HashMap<String, Double>(); //create our element placeholder
 			for(String word : wordMap.get(state).keySet()) { //for all words in that tag type
-				double emissionProbability = Math.log(wordMap.get(state).get(word) / denominator); //calculate the emission probabilitye for a word within a state
-				Map<String, Double> element = new HashMap<String, Double>(); //create our element placeholder
+				double emissionProbability = Math.log((double) wordMap.get(state).get(word) / denominator); //calculate the emission probabilitye for a word within a state
 				element.put(word, emissionProbability); //populate the element
-				emissionMatrix.put(state, element); //put the emission probability in our emission matrix
 			}
+			emissionMatrix.put(state, element); //put the emission probability in our emission matrix
 		}
 	}
-	
+
 	private void viterbiTagging(String input) {
 		tagMap.keySet();
 		String[] wordArray = input.split(" ");
@@ -180,13 +175,13 @@ public class SpeechRecognizer {
 		for(int i = 0; i < (1+wordArray.length); i++ ) {
 			wordList.add(wordArray[i+1]);
 		}
-		
+
 		ArrayList<String> tagList = new ArrayList<String>();
 		tagList.add("");
-		
+
 		ArrayList<Double> scoreList = new ArrayList<Double>();
 		scoreList.add((double) 0);
-		
+
 		/*
 		//first word tagger
 		String tempTag = new String();
@@ -200,20 +195,71 @@ public class SpeechRecognizer {
 			}
 		}
 		tagList.add(tempTag);
-		*/
-		
-		
+		 */
+
+
 	}
 	
-	private void predictOnString(String[] observations) {
-		
+	private double getEmission(String nextState, String word) {
+		if(emissionMatrix.get(nextState).containsKey(word)) {
+			return emissionMatrix.get(nextState).get(word);
+		}
+		else {
+			return reallySmallValue;
+		}
 	}
-	
-	
+
+	private String[] predictOnString(String[] observations) {
+		ArrayList<Map> backTrace = new ArrayList<Map>(); //create a backtrace arraylist of maps
+		Map<String, Double> states = new HashMap<String, Double>();
+		states.put("START", (double) 0); //put in 0 for the start state's probability since log(1) = 0
+		for(String word : observations) { //for each word
+			Map<String, Double> scores = new HashMap<String, Double>();
+			for(String state: states.keySet()) { //for each state
+				for(String nextState: tagMap.get(state).keySet()) {
+					double score = states.get(state) + transitionMatrix.get(state).get(nextState) + getEmission(nextState, word);
+					if(!scores.containsKey(nextState) || score > scores.get(nextState)) {
+						scores.put(nextState, score); //put the score in the score map
+						backTrace.add(scores); //put this new map in the back tracer
+					}
+				}
+			}
+			states = scores; //get ready to iterate on the next set of states
+		}
+		String[] predictedTags = new String[observations.length];
+		String maxKey=null;
+		Double maxValue = 0.0;
+		for(String state : states.keySet()) {
+		     if(states.get(state) > maxValue) {
+		         maxValue = states.get(state);
+		         maxKey = state;
+		     }
+		}
+		predictedTags[predictedTags.length - 1] = maxKey;
+		for(int i = predictedTags.length - 2; i > -1; i --) {
+			predictedTags[i] = backTrace.get(i).get(maxKey);
+		}
+		
+		
+		
+		return backTrace;
+	}
+
+	private Map<String, Map<Integer, Double>> createProbabilityTable(String[] observations) {
+		Map<String, Map<Integer, Double>> probabilityTable = new HashMap<String, Map<Integer, Double>>();
+		for(String state : tagMap.keySet()) {
+
+		}
+		return probabilityTable;
+	}
+
+
 	public static void main(String[] args) throws Exception {
 		SpeechRecognizer s = new SpeechRecognizer();
 		s.quickTrain();
-		
-		
+		String test = new String("the ");
+		ArrayList<Map> backTrace = s.predictOnString(test.split(" "));
+		System.out.println(backTrace);
+
 	}
 }
