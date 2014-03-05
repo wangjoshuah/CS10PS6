@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 
 /**
@@ -21,8 +22,8 @@ public class SpeechRecognizer {
 	private Map<String, Map<String, Integer>> tagMap; // 1) the tag 2) the tag of its next word 3) the frequency of that next word
 	private Map<String, Map<String, Double>> transitionMatrix; //stores the transition probability of going from state i to state j
 	private Map<String, Map<String, Double>> emissionMatrix; // stores the emission probability of a word within a state
-	ArrayList<ArrayList<String[]>> wordChunks;
-	ArrayList<ArrayList<String[]>> tagChunks;
+	ArrayList<ArrayList<String[]>> wordChunks; //keeps track of segments used for testing
+	ArrayList<ArrayList<String[]>> tagChunks; //keeps track of segments used for testing
 	private final double reallySmallValue = -1000.0;
 
 	/**
@@ -30,110 +31,71 @@ public class SpeechRecognizer {
 	 * initializes the word map and the tag map
 	 */
 	public SpeechRecognizer() {
-//		wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
-//		tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
+		wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
+		tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
 		transitionMatrix = new HashMap<String, Map<String, Double>>(); //start transititon matrix
 		emissionMatrix = new HashMap<String, Map<String, Double>>(); //start emissions matrix
 	
 	}
-
+	
 	/**
-	 * creates the maps for tags to words and tags to next possible tags in linear time 
-	 * sets up the data on the fly as we read through the two files
-	 * @throws Exception
-	 */
-	private void quickTrain() throws Exception {
-
-		long startTime = System.currentTimeMillis();
-		//create readers for all the word in puts and the tag inputs
-		BufferedReader words = new BufferedReader(new FileReader("inputs/Brown-words.txt")); //where do we get our words from input document 
-		BufferedReader tags = new BufferedReader(new FileReader("inputs/Brown-tags.txt"));   //get our tags from other input doc
-
-		String wordLine = new String(); //string that takes each line of the words file
-		String tagLine = new String();  //string that takes each line of the tags  file
-
-		String[] wordTokens;	//list of words keeping track of indices
-		String[] tagTokens;	//list of tags  keeping track of indices to compare with wordlist
-
-		String start = "START";
-		Map<String, Integer> map = new HashMap<String, Integer>();
-		tagMap.put(start, map);
-		//----------------------------------------- read over this algorithm so it's absolutely correct
-		while ((wordLine = words.readLine()) != null && (tagLine = tags.readLine()) != null) { //while we can continue reading through the words and tags
-			wordTokens = wordLine.split(" "); //split word line based on spaces
-			tagTokens = tagLine.split(" "); //split tag line based on spaces
-			putTagInTagMapOfPrevTag(tagTokens); //handle tags and prev tags map
-			putWordsInMapsOfTags(wordTokens, tagTokens); //map words into wordmap of tags
-		}
-
-		//don't forget to clean up after we are done
-		words.close();
-		tags.close();
-
-		createTransitionMatrix();
-		createEmissionMatrix();
-
-		long endTime = System.currentTimeMillis();
-		System.out.println("Total Time = " + (endTime - startTime));
-	}
-
-	/**
-	 * 
-	 * @param numberOfChunks
-	 * @param lines
-	 * @return
+	 * Test the Viterbi tagging on a section of the Brown codecs 
+	 * @param numberOfChunks	number of chunks you wish to break the lines into
+	 * @param lines		number of lines you want to read
+	 * @return		the accuracy of our version of the viterbi tagging
 	 * @throws Exception
 	 */
 	public double testOnNumberOfChunksAndLines(int numberOfChunks, int lines) throws Exception {
-		double score = 0.0;
-		wordChunks = new ArrayList<ArrayList<String[]>>(numberOfChunks);
+		long startTime = System.currentTimeMillis();
+		double score = 0.0; //begin with score of 0
+		wordChunks = new ArrayList<ArrayList<String[]>>(numberOfChunks); 
 		tagChunks = new ArrayList<ArrayList<String[]>>(numberOfChunks);
-		for (int c = 0; c < numberOfChunks; c ++) {
+		for (int c = 0; c < numberOfChunks; c ++) { //loop through the number of chunks
 			ArrayList<String[]> wordPlaceHolder = new ArrayList<String[]>();
-			wordChunks.add(wordPlaceHolder);
+			wordChunks.add(wordPlaceHolder); //add a placeholder for each chunk
 			ArrayList<String[]> tagPlaceHolder = new ArrayList<String[]>();
-			tagChunks.add(tagPlaceHolder);
+			tagChunks.add(tagPlaceHolder); //add a placeholder for each chunk
 		}
 		int counter = 0;
+		
 		//create readers for all the word in puts and the tag inputs
 		BufferedReader words = new BufferedReader(new FileReader("inputs/Brown-words.txt")); //where do we get our words from input document 
 		BufferedReader tags = new BufferedReader(new FileReader("inputs/Brown-tags.txt"));   //get our tags from other input doc
-
 		String wordLine = new String(); //string that takes each line of the words file
 		String tagLine = new String();  //string that takes each line of the tags  file
 
 		while (counter < lines && (wordLine = words.readLine()) != null && (tagLine = tags.readLine()) != null) { //while we can continue reading through the words and tags
-			wordChunks.get(counter % numberOfChunks).add(wordLine.split(" "));
+			wordChunks.get(counter % numberOfChunks).add(wordLine.split(" ")); //split the strings into arrays
 			tagChunks.get(counter % numberOfChunks).add(tagLine.split(" "));
 			counter ++;
 		}
-
-		System.out.println("word chunks has " + wordChunks.size() + " chunks and " + wordChunks.get(0).size() + " lines in the first chunk");
-
-		words.close();
+		System.out.println("The data has been broken down into " + wordChunks.size() + " segments. " + wordChunks.get(0).size() + " is the quantity of lines in the first segment.");
+		words.close(); //close the readers
 		tags.close();
-
-		for (int i = 0; i < numberOfChunks; i++) {
-			doNotTestOn(i);
-			transitionMatrix = createTransitionMatrix();
-			emissionMatrix = createEmissionMatrix();
-			//System.out.println(numberOfChunks + " " + score);
-			score += testOnChunk(i);
+		
+		for (int i = 0; i < numberOfChunks; i++) { //loop through each chunk
+			doNotTestOn(i); //call our non-testing chunk
+			transitionMatrix = createTransitionMatrix(); //create the matrix used to calculate the transitions
+			emissionMatrix = createEmissionMatrix(); //create the matrix used to calcualte emissions for Viterbi
+			score += testOnChunk(i); //add the score correct for each given chunk
 		}
-
 		
-		/*for(int i = 0; i < tagChunks.size(); i ++) {
-			for(int j = 0; j < tagChunks.get(i).size(); j++) {
-				for(int k = 0; k < tagChunks.get(i).get(j).length; k++) {
-					System.out.println(tagChunks.get(i).get(j)[k] + " " + wordChunks.get(i).get(j)[k]);
-				}
-			}
-		} */
+		long endTime = System.currentTimeMillis();
+		System.out.println("Total Time = " + (endTime - startTime));
 		
-		return score / numberOfChunks;
+		return score / numberOfChunks; //return the accuracy
 	}
 	
+	/**
+	 * Test the Viterbi tagging on a section of the Brown codecs 
+	 * Used only if you wish to test entire Brown codec
+	 * @param numberOfChunks	how many chunks you want to divide into
+	 * @return		accuracy
+	 * @throws Exception
+	 */
 	public double testOnNumberOfChunksWithAllLines(int numberOfChunks) throws Exception {
+		long startTime = System.currentTimeMillis();
+		//Identical to the previous method, with the exception that the Buffered Reader is held open until the end of the document is reached
 		double score = 0.0;
 		wordChunks = new ArrayList<ArrayList<String[]>>(numberOfChunks);
 		tagChunks = new ArrayList<ArrayList<String[]>>(numberOfChunks);
@@ -144,45 +106,40 @@ public class SpeechRecognizer {
 			tagChunks.add(tagPlaceHolder);
 		}
 		int counter = 0;
-		//create readers for all the word in puts and the tag inputs
-		BufferedReader words = new BufferedReader(new FileReader("inputs/Brown-words.txt")); //where do we get our words from input document 
-		BufferedReader tags = new BufferedReader(new FileReader("inputs/Brown-tags.txt"));   //get our tags from other input doc
+		
+		BufferedReader words = new BufferedReader(new FileReader("inputs/Brown-words.txt")); 
+		BufferedReader tags = new BufferedReader(new FileReader("inputs/Brown-tags.txt"));  
+		String wordLine = new String(); 
+		String tagLine = new String();  
 
-		String wordLine = new String(); //string that takes each line of the words file
-		String tagLine = new String();  //string that takes each line of the tags  file
-
-		while ((wordLine = words.readLine()) != null && (tagLine = tags.readLine()) != null) { //while we can continue reading through the words and tags
+		while ((wordLine = words.readLine()) != null && (tagLine = tags.readLine()) != null) { 
 			wordChunks.get(counter % numberOfChunks).add(wordLine.split(" "));
 			tagChunks.get(counter % numberOfChunks).add(tagLine.split(" "));
 			counter ++;
 		}
-
-		System.out.println("word chunks has " + wordChunks.size() + " chunks and " + wordChunks.get(0).size() + " lines in the first chunk");
-
+		System.out.println("The data has been broken down into " + wordChunks.size() + " segments. " + wordChunks.get(0).size() + " is the quantity of lines in the first segment.");
 		words.close();
 		tags.close();
 
 		for (int i = 0; i < numberOfChunks; i++) {
-			System.out.println("Testing..." + (double) i/numberOfChunks*100 + "%");
 			doNotTestOn(i);
 			transitionMatrix = createTransitionMatrix();
 			emissionMatrix = createEmissionMatrix();
-			//System.out.println(numberOfChunks + " " + score);
 			score += testOnChunk(i);
 		}
+		long endTime = System.currentTimeMillis();
+		System.out.println("Total Time = " + (endTime - startTime));
 		return score / numberOfChunks;
 	}
 
 	/**
-	 * 
-	 * @param doNotTest
+	 * Processed the sections of testing that will be used for training and not tagging
+	 * @param doNotTest		index of the chunk that does not need to be used as testing
 	 */
 	private void doNotTestOn(int doNotTest) {		
-		wordMap = new HashMap<String, Map<String, Integer>>(); //start wordMap as a hashmap
-		tagMap = new HashMap<String, Map<String, Integer>>(); //also start tagMap
-		for (int i = 0; i < wordChunks.size(); i ++) {
-			if (i != doNotTest) {
-				for (int j = 0; j < wordChunks.get(i).size(); j ++) {
+		for (int i = 0; i < wordChunks.size(); i ++) { //loop through all the arraylist in wordchunks
+			if (i != doNotTest) { //if the index does not match the passed integer
+				for (int j = 0; j < wordChunks.get(i).size(); j ++) { //loop through the arraylist at index i
 					putTagInTagMapOfPrevTag(tagChunks.get(i).get(j)); //handle tags and prev tags map
 					putWordsInMapsOfTags(wordChunks.get(i).get(j), tagChunks.get(i).get(j)); //map words into wordmap of tags
 				}
@@ -191,31 +148,24 @@ public class SpeechRecognizer {
 	}
 
 	/**
-	 * 
-	 * @param doTest
-	 * @return
+	 * Performs the accuracy check by comparing the predicted tags with the actual tags for a given string
+	 * @param doTest	index of the arraylist on which to do the test
+	 * @return		score used to calcuate accuracy
 	 */
 	private double testOnChunk(int doTest) {
 		double accuracy = 0;
-		for (int i = 0; i < tagChunks.get(doTest).size(); i ++) {
-			String[] predictedTags = predictOnString(wordChunks.get(doTest).get(i));
-			String[] actualTags = tagChunks.get(doTest).get(i);
-			
-			
-			/*for(int z = 0; z < predictedTags.length; z++) {
-				System.out.println(predictedTags[z] + " " + actualTags[z]);
-			} */
-			
-			
+		for (int i = 0; i < tagChunks.get(doTest).size(); i ++) { //for every i in the arraylist for tag chunks
+			String[] predictedTags = predictOnString(wordChunks.get(doTest).get(i)); //calcuate the predicted tag
+			String[] actualTags = tagChunks.get(doTest).get(i); //get the actual tag
 			double percentage = 0;
-			for (int j = 0; j < predictedTags.length; j ++) {
-				if (actualTags[j].equalsIgnoreCase(predictedTags[j])) {
-					percentage ++;
+			for (int j = 0; j < predictedTags.length; j ++) { //loop through each array item
+				if (actualTags[j].equalsIgnoreCase(predictedTags[j])) { //if the predicted and actual are the same 
+					percentage ++; //add 1
 				}
 			}
-			accuracy += (percentage/actualTags.length);
+			accuracy += (percentage/actualTags.length); //get the accuracy
 		}
-		return accuracy/tagChunks.get(doTest).size();
+		return accuracy/tagChunks.get(doTest).size(); //divide by the size and return
 	}
 
 	/**
@@ -275,6 +225,7 @@ public class SpeechRecognizer {
 
 	/**
 	 * Calculates log probability of each next part of speech for each part of speech
+	 * @return transition matrix
 	 */
 	private Map<String, Map<String, Double>> createTransitionMatrix() {
 		int denominator; //divides the frequencies in second sub-for-loop
@@ -296,6 +247,7 @@ public class SpeechRecognizer {
 
 	/**
 	 * create the emission matrix we will use in the future to calculate probabilities
+	 * @return emission matrix
 	 */
 	private Map<String, Map<String, Double>> createEmissionMatrix() {
 		int denominator; //divides the frequencies 
@@ -316,7 +268,7 @@ public class SpeechRecognizer {
 	}
 
 	/**
-	 * 
+	 * Get the particular emission
 	 * @param nextState
 	 * @param word
 	 * @return
@@ -331,7 +283,7 @@ public class SpeechRecognizer {
 	}
 
 	/**
-	 * 
+	 * Get the particular transmission
 	 * @param state
 	 * @param nextState
 	 * @return
@@ -345,11 +297,10 @@ public class SpeechRecognizer {
 		}
 	}
 	
-	
 	/**
-	 * 
-	 * @param observations
-	 * @return
+	 * Method that actually performs the Viterbi Algorithm calculations
+	 * @param observations  string that contains the text that we are testing
+	 * @return  predicted tags based on training data
 	 */
 	private String[] predictOnString(String[] observations) {
 		ArrayList<Map<String, String>> backTrace = new ArrayList<Map<String, String>>(); //create a backtrace arraylist of maps
@@ -359,13 +310,9 @@ public class SpeechRecognizer {
 			Map<String, Double> scores = new HashMap<String, Double>();
 			Map<String, String> backPath = new HashMap<String, String>();
 			for(String state: states.keySet()) { //for each state
-				
-				
 				if(tagMap.containsKey(state)) {
-					
 					for(String nextState: tagMap.get(state).keySet()) {
 						double score = states.get(state) + getTransition(state, nextState) + getEmission(nextState, word);
-						//System.out.println("This is the score " + score);
 						if(!scores.containsKey(nextState) || score > scores.get(nextState)) { //if overwrite
 							scores.put(nextState, score); //put the score in the score map
 							backPath.put(nextState, state); //put it in our map
@@ -376,60 +323,100 @@ public class SpeechRecognizer {
 			backTrace.add(backPath); //add the backpath at that word level
 			states = scores; //get ready to iterate on the next set of states
 		}
-		
-		
-		/*for(Map<String, String> m : backTrace) {
-			System.out.println(m.toString());
-		}*/
-		
-		
-		String[] predictedTags = new String[observations.length];
-		String maxKey=null;
-		Double maxValue = reallySmallValue;
-		for(String state : states.keySet()) {
-			if(states.get(state) > maxValue) {
-				maxValue = states.get(state);
-				maxKey = state;
+		String[] predictedTags = new String[observations.length]; //create a new array
+		String maxKey=null; 
+		Double maxValue = reallySmallValue; //used to get the largest value 
+		for(String state : states.keySet()) { //for each state in the keyset of the map
+			if(states.get(state) > maxValue) { //if the value is greater than max value
+				maxValue = states.get(state); //maxvalue is that value
+				maxKey = state; 
 			}
 		}
-		predictedTags[predictedTags.length - 1] = maxKey;
-		for(int i = predictedTags.length - 2; i > -1; i --) {
-			predictedTags[i] = backTrace.get(i + 1).get(predictedTags[i+1]);
+		predictedTags[predictedTags.length - 1] = maxKey; //predicted tag is based on the largest key
+		for(int i = predictedTags.length - 2; i > -1; i --) { //loop through backwards
+			predictedTags[i] = backTrace.get(i + 1).get(predictedTags[i+1]); //call backtrace to get the tag at each position starting from the end
 		}
-		return predictedTags;
+		return predictedTags; //return the predicted tags
+	}
+
+	/**Please Note: QuickTrain is not called in the main method. We've kept it here as a proof of concept
+	 * creates the maps for tags to words and tags to next possible tags in linear time 
+	 * sets up the data on the fly as we read through the two files
+	 * @throws Exception
+	 */
+	private void quickTrain() throws Exception {
+
+		long startTime = System.currentTimeMillis();
+		//create readers for all the word in puts and the tag inputs
+		BufferedReader words = new BufferedReader(new FileReader("inputs/Brown-words.txt")); //where do we get our words from input document 
+		BufferedReader tags = new BufferedReader(new FileReader("inputs/Brown-tags.txt"));   //get our tags from other input doc
+
+		String wordLine = new String(); //string that takes each line of the words file
+		String tagLine = new String();  //string that takes each line of the tags  file
+
+		String[] wordTokens;	//list of words keeping track of indices
+		String[] tagTokens;	//list of tags  keeping track of indices to compare with wordlist
+
+		String start = "START";
+		Map<String, Integer> map = new HashMap<String, Integer>();
+		tagMap.put(start, map);
+		//----------------------------------------- read over this algorithm so it's absolutely correct
+		while ((wordLine = words.readLine()) != null && (tagLine = tags.readLine()) != null) { //while we can continue reading through the words and tags
+			wordTokens = wordLine.split(" "); //split word line based on spaces
+			tagTokens = tagLine.split(" "); //split tag line based on spaces
+			putTagInTagMapOfPrevTag(tagTokens); //handle tags and prev tags map
+			putWordsInMapsOfTags(wordTokens, tagTokens); //map words into wordmap of tags
+		}
+
+		//don't forget to clean up after we are done
+		words.close();
+		tags.close();
+
+		createTransitionMatrix();
+		createEmissionMatrix();
+		long endTime = System.currentTimeMillis();
+		System.out.println("Total Time = " + (endTime - startTime));
 	}
 
 	/**
-	 * 
-	 * @param observations
-	 * @return
-	 */
-	/*private Map<String, Map<Integer, Double>> createProbabilityTable(String[] observations) {
-		Map<String, Map<Integer, Double>> probabilityTable = new HashMap<String, Map<Integer, Double>>();
-		for(String state : tagMap.keySet()) {
-
-		}
-		return probabilityTable;
-	} */
-
-	/**
-	 * 
+	 * Main method. Calls the test method 
 	 * @param args
 	 * @throws Exception
 	 */
 	public static void main(String[] args) throws Exception {
 		SpeechRecognizer s = new SpeechRecognizer();
-		//s.quickTrain();
-		/*String test = new String("The Fulton County Grand Jury said Friday an investigation of Atlanta's recent primary election produced `` no evidence '' that any irregularities took place .");
-		String[] backTrace = s.predictOnString(test.split(" "));
-		String tags = new String();
-		for(String tag : backTrace) {
-					tags += (tag + " ");
-				} 
-		System.out.println("length is " + backTrace.length + " and values are " + tags);
-		*/
-		//System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(1, 1));
-		System.out.println("Accuracy is " + s.testOnNumberOfChunksWithAllLines(100));
+		
+		
+		String command = "";
+		Scanner input = new Scanner(System.in);
+		System.out.println("Please select one of the following tests to perform by enterring the letter corresponding to the given action:");
+		System.out.println("a: 5-fold cross-validation using first 1000 lines.");
+		System.out.println("b: 10-fold cross-validation using first 1000 lines.");
+		System.out.println("c: 5-fold cross-validation using first 10000 lines.");
+		System.out.println("d: 10-fold cross-validation using first 10000 lines.");
+		System.out.println("e: 5-fold cross-validation using all lines.");
+		System.out.println("f: 10-fold cross-validation using all lines.");
+		command = input.nextLine();
+		if(command.charAt(0)=='a') {
+			System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(5, 1000));
+		}
+		if(command.charAt(0)=='b') {
+			System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(10, 1000));
+		}
+		if(command.charAt(0)=='c') {
+			System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(5, 10000));
+		}
+		if(command.charAt(0)=='d') {
+			System.out.println("Accuracy is " + s.testOnNumberOfChunksAndLines(10, 10000));
+		}
+		if(command.charAt(0)=='e') {
+			System.out.println("Accuracy is " + s.testOnNumberOfChunksWithAllLines(5));
+		}
+		if(command.charAt(0)=='f') {
+			System.out.println("Accuracy is " + s.testOnNumberOfChunksWithAllLines(10));
+		}
+		
 
 	}
+	
 }
