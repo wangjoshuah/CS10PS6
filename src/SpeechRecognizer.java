@@ -21,6 +21,8 @@ public class SpeechRecognizer {
 	private Map<String, Map<String, Integer>> tagMap; // 1) the tag 2) the tag of its next word 3) the frequency of that next word
 	private Map<String, Map<String, Double>> transitionMatrix; //stores the transition probability of going from state i to state j
 	private Map<String, Map<String, Double>> emissionMatrix; // stores the emission probability of a word within a state
+	ArrayList<ArrayList<String[]>> wordChunks;
+	ArrayList<ArrayList<String[]>> tagChunks;
 	private final double reallySmallValue = -1000.0;
 
 	/**
@@ -72,6 +74,73 @@ public class SpeechRecognizer {
 
 		long endTime = System.currentTimeMillis();
 		System.out.println("Total Time = " + (endTime - startTime));
+	}
+
+	public double testOnNumberOfChunksAndLines(int numberOfChunks, int lines) throws Exception {
+		double score = 0.0;
+		wordChunks = new ArrayList<ArrayList<String[]>>(numberOfChunks);
+		tagChunks = new ArrayList<ArrayList<String[]>>(numberOfChunks);
+		for (int c = 0; c < numberOfChunks; c ++) {
+			ArrayList<String[]> wordPlaceHolder = new ArrayList<String[]>();
+			wordChunks.add(wordPlaceHolder);
+			ArrayList<String[]> tagPlaceHolder = new ArrayList<String[]>();
+			tagChunks.add(tagPlaceHolder);
+		}
+		int counter = 0;
+		//create readers for all the word in puts and the tag inputs
+		BufferedReader words = new BufferedReader(new FileReader("inputs/Brown-words.txt")); //where do we get our words from input document 
+		BufferedReader tags = new BufferedReader(new FileReader("inputs/Brown-tags.txt"));   //get our tags from other input doc
+
+		String wordLine = new String(); //string that takes each line of the words file
+		String tagLine = new String();  //string that takes each line of the tags  file
+		
+		while (counter < lines && (wordLine = words.readLine()) != null && (tagLine = tags.readLine()) != null) { //while we can continue reading through the words and tags
+			wordChunks.get(counter % numberOfChunks).add(wordLine.split(" "));
+			tagChunks.get(counter % numberOfChunks).add(tagLine.split(" "));
+			counter ++;
+		}
+		
+		System.out.println("asdlkfjaslkdfjlaskdjf");
+		System.out.println("word chunks has " + wordChunks.size() + " chunks and " + wordChunks.get(0).size() + " lines in the first chunk");
+		
+		words.close();
+		tags.close();
+		
+		for (int i = 0; i < numberOfChunks; i++) {
+			doNotTestOn(i);
+			score += testOnChunk(i);
+		}
+		
+		return score / numberOfChunks;
+	}
+	
+	private void doNotTestOn(int doNotTest) {
+		for (int i = 0; i < wordChunks.size(); i ++) {
+			if (i != doNotTest) {
+				for (int j = 0; j < wordChunks.get(i).size(); j ++) {
+					putTagInTagMapOfPrevTag(tagChunks.get(i).get(j)); //handle tags and prev tags map
+					putWordsInMapsOfTags(wordChunks.get(i).get(j), tagChunks.get(i).get(j)); //map words into wordmap of tags
+				}
+			}
+		}
+			
+	}
+	
+	private double testOnChunk(int doTest) {
+		double accuracy = 0;
+		for (int i = 0; i < tagChunks.get(doTest).size(); i ++) {
+			System.out.println("we are testing on line " + i);
+			String[] predictedTags = predictOnString(wordChunks.get(doTest).get(i));
+			String[] actualTags = tagChunks.get(doTest).get(i);
+			double percentage = 0;
+			for (int j = 0; j < predictedTags.length; j ++) {
+				if (actualTags[j].equalsIgnoreCase(predictedTags[j])) {
+					percentage ++;
+				}
+			}
+			accuracy += (percentage/actualTags.length);
+		}
+		return accuracy/tagChunks.get(doTest).size();
 	}
 
 	/**
@@ -199,7 +268,7 @@ public class SpeechRecognizer {
 
 
 	}
-	
+
 	private double getEmission(String nextState, String word) {
 		if(emissionMatrix.get(nextState).containsKey(word)) {
 			return emissionMatrix.get(nextState).get(word);
@@ -232,10 +301,10 @@ public class SpeechRecognizer {
 		String maxKey=null;
 		Double maxValue = reallySmallValue;
 		for(String state : states.keySet()) {
-		     if(states.get(state) > maxValue) {
-		         maxValue = states.get(state);
-		         maxKey = state;
-		     }
+			if(states.get(state) > maxValue) {
+				maxValue = states.get(state);
+				maxKey = state;
+			}
 		}
 		System.out.println(maxKey);
 		predictedTags[predictedTags.length - 1] = maxKey;
@@ -257,14 +326,15 @@ public class SpeechRecognizer {
 
 	public static void main(String[] args) throws Exception {
 		SpeechRecognizer s = new SpeechRecognizer();
-		s.quickTrain();
-		String test = new String("The Fulton County Grand Jury said Friday an investigation of Atlanta's recent primary election produced `` no evidence '' that any irregularities took place .");
-		String[] backTrace = s.predictOnString(test.split(" "));
-		String tags = new String();
-		for(String tag : backTrace) {
-			tags += (tag + " ");
-		}
-		System.out.println("length is " + backTrace.length + " and values are " + tags);
+//		s.quickTrain();
+//		String test = new String("The Fulton County Grand Jury said Friday an investigation of Atlanta's recent primary election produced `` no evidence '' that any irregularities took place .");
+//		String[] backTrace = s.predictOnString(test.split(" "));
+//		String tags = new String();
+//		for(String tag : backTrace) {
+//			tags += (tag + " ");
+//		}
+//		System.out.println("length is " + backTrace.length + " and values are " + tags);
+		s.testOnNumberOfChunksAndLines(5, 100);
 
 	}
 }
